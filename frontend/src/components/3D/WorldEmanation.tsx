@@ -225,7 +225,7 @@ const AspectLines: React.FC<{ planetPositions: Record<string, PlanetPosition> | 
   );
 };
 
-// Disaster Need-Glow Markers (Full variant)
+// Disaster Need-Glow Markers
 const DisasterMarkers: React.FC<{ disasters: Disaster[] }> = ({ disasters }) => {
   return (
     <group>
@@ -240,6 +240,39 @@ const DisasterMarkers: React.FC<{ disasters: Disaster[] }> = ({ disasters }) => 
             <sphereGeometry args={[0.05, 12, 12]} />
             <meshBasicMaterial color={d.severity === 'critical' ? '#ef4444' : '#f59e0b'} transparent opacity={0.85} />
           </mesh>
+        );
+      })}
+    </group>
+  );
+};
+
+// Radiant Compassion Arcs connecting practitioner to active disaster sites
+const CompassionCrisisArcs: React.FC<{
+  origin: THREE.Vector3;
+  disasters: Disaster[];
+  isActive?: boolean;
+}> = ({ origin, disasters, isActive = true }) => {
+  if (!disasters || disasters.length === 0) return null;
+  const activeDisasters = disasters.slice(0, 4);
+
+  return (
+    <group>
+      {activeDisasters.map((d, i) => {
+        const coords =
+          d.lat !== undefined && d.lon !== undefined && d.lat !== null && d.lon !== null
+            ? ([d.lat, d.lon] as [number, number])
+            : resolveTargetCoords(d.location || d.country || d.title);
+        if (!coords) return null;
+        const endVec = latLonToVec3(coords[0], coords[1]);
+        const tone = d.severity === 'critical' ? '#f43f5e' : '#fb923c';
+        return (
+          <BlessingFlightArc
+            key={`crisis-arc-${i}`}
+            start={origin}
+            end={endVec}
+            label={d.title || d.location || 'Crisis Focus'}
+            tone={isActive ? tone : '#fbbf24'}
+          />
         );
       })}
     </group>
@@ -326,8 +359,15 @@ const SceneContent: React.FC<SceneContentProps> = ({
         <BlessingFlightArc key={i} start={arc.start} end={arc.end} label={arc.label} tone={tone} />
       ))}
 
-      {/* Telemetry for full variant */}
-      {variant === 'full' && <DisasterMarkers disasters={disasters} />}
+      {/* Radiant compassion arcs connecting practitioner to active crisis nodes */}
+      <CompassionCrisisArcs
+        origin={originVec}
+        disasters={variant === 'compact' ? disasters.slice(0, 3) : disasters}
+        isActive={activeBroadcasts.length > 0}
+      />
+
+      {/* Disaster Markers (rendered in compact as subtle pulses, and in full with markers) */}
+      <DisasterMarkers disasters={variant === 'compact' ? disasters.slice(0, 3) : disasters} />
       {variant === 'full' && <AspectLines planetPositions={planetPositions} aspects={aspects} />}
     </group>
   );
@@ -382,10 +422,8 @@ export default function WorldEmanation({
     }
   }, [customCoords]);
 
-  // Full-variant telemetry fetch
+  // World-context telemetry fetch (active for both compact and full variants)
   useEffect(() => {
-    if (variant !== 'full') return;
-
     let mounted = true;
     const fetchTelemetry = async () => {
       try {
@@ -400,6 +438,7 @@ export default function WorldEmanation({
     };
 
     const fetchAstro = async () => {
+      if (variant !== 'full') return;
       try {
         const res = await fetch(apiUrl(`/astrology/current?latitude=${practitionerCoords[0]}&longitude=${practitionerCoords[1]}`));
         if (res.ok && mounted) {
@@ -484,18 +523,21 @@ export default function WorldEmanation({
           <span>{activeTargetSummary ? `Emanating: ${activeTargetSummary}` : 'Field Receptive'}</span>
         </div>
 
-        {variant === 'full' && (
-          <div className="flex gap-2 text-[10px] font-mono">
-            {disasters.length > 0 && (
-              <span className="bg-slate-950/80 px-2 py-0.5 rounded border border-amber-500/30 text-amber-300">
-                {disasters.length} need-sites
-              </span>
-            )}
+        <div className="flex gap-2 text-[10px] font-mono">
+          {disasters.length > 0 && (
+            <span
+              data-testid="crisis-need-sites-badge"
+              className="bg-slate-950/80 px-2 py-0.5 rounded border border-amber-500/30 text-amber-300"
+            >
+              {disasters.length} need-sites
+            </span>
+          )}
+          {variant === 'full' && (
             <span className="bg-slate-950/80 px-2 py-0.5 rounded border border-cyan-500/30 text-cyan-300">
               {activeBroadcasts.length} live
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

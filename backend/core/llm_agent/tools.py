@@ -1528,6 +1528,185 @@ def run_full_journey() -> dict[str, Any]:
 
 
 # ============================================================================
+# SACRED ASTRONOMY, DHARANI, CRISIS & LIVING RITUAL EXPANSION
+# ============================================================================
+
+
+def get_celestial_night_sky(
+    latitude: float = DEFAULT_LAT,
+    longitude: float = DEFAULT_LNG,
+    timestamp: float | None = None,
+) -> dict[str, Any]:
+    """Get topocentric celestial night sky coordinates for observer.
+
+    Computes topocentric Altitude/Azimuth for 10 solar system bodies (Sun, Moon,
+    Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto) and 10 Vedic
+    nakshatra fixed stars (Sirius/Mrigashirsha, Vega/Abhijit, Arcturus/Swati,
+    Spica/Chitra, Aldebaran/Rohini, Antares/Jyeshtha, Betelgeuse/Ardra,
+    Polaris/Dhruva, Regulus/Magha, Pleiades/Krittika), along with Moon phase,
+    illumination percentage, and Local Sidereal Time (LST).
+    """
+    from datetime import datetime, timezone
+
+    from core.celestial_sky import calculate_night_sky
+
+    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc) if timestamp is not None else None
+    return calculate_night_sky(latitude=latitude, longitude=longitude, dt=dt)
+
+
+def get_dharani_text(dharani_id_or_name: str = "") -> dict[str, Any]:
+    """Retrieve unabbreviated sacred Dhāraṇī or mantra text from the canonical library.
+
+    Loads complete canonical text (Sanskrit IAST, Chinese characters, English meaning,
+    historical context, and recitation instructions) from the sacred dhāraṇī library.
+    Supports Great Compassion Mantra (84 phrases), Śūraṅgama Mantra (all 5 assemblies),
+    Sitātapatrā (White Umbrella), Mahāpratisarā, Cundi (with full 4-line praise), etc.
+    If 'list' or empty query is supplied, returns a directory of available dhāraṇīs.
+    """
+    import json
+    from pathlib import Path
+
+    base_dir = Path(__file__).resolve().parent.parent.parent.parent
+    dharani_path = base_dir / "knowledge" / "dharanis.json"
+    if not dharani_path.exists():
+        return {"status": "error", "message": "knowledge/dharanis.json not found"}
+
+    try:
+        data = json.loads(dharani_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to parse dharanis.json: {e}"}
+
+    query = (dharani_id_or_name or "").strip().lower()
+
+    if not query or query in ("list", "all", "help", "dir"):
+        summary_list = [
+            {
+                "id": d.get("id"),
+                "name": d.get("name"),
+                "name_chinese": d.get("name_chinese", ""),
+                "deity": d.get("deity", ""),
+                "purpose": d.get("purpose", ""),
+                "frequency_hz": d.get("frequency_hz", 528),
+            }
+            for d in data
+        ]
+        return {
+            "status": "list",
+            "total": len(data),
+            "available_dharanis": summary_list,
+            "message": "Specify a dhāraṇī id or name to retrieve the full unabbreviated text.",
+        }
+
+    # Match exact ID first
+    match = next((d for d in data if d.get("id", "").lower() == query), None)
+
+    # Match substring on id, name, name_chinese, deity, purpose
+    if not match:
+        for d in data:
+            if (
+                query in d.get("id", "").lower()
+                or query in d.get("name", "").lower()
+                or query in d.get("name_chinese", "").lower()
+                or query in d.get("deity", "").lower()
+                or query in d.get("purpose", "").lower()
+            ):
+                match = d
+                break
+
+    if not match:
+        return {
+            "status": "not_found",
+            "query": dharani_id_or_name,
+            "message": f"Dhāraṇī '{dharani_id_or_name}' not found. Available IDs: {[d.get('id') for d in data]}",
+        }
+
+    return {
+        "status": "found",
+        "dharani": match,
+    }
+
+
+def get_auspicious_timing_details(
+    latitude: float = DEFAULT_LAT,
+    longitude: float = DEFAULT_LNG,
+) -> dict[str, Any]:
+    """Get full 24-hour Auspicious Timing Wheel details for ritual scheduling.
+
+    Includes 24 planetary hour slices, current planetary ruler, daytime/nighttime state,
+    lunar phase and tithi, nakshatra, Saka Dawa multiplier and status, and green windows
+    for ritual genres (healing, victory, wisdom, purification, compassion, prosperity, protection).
+    """
+    from core.auspicious_timing import AuspiciousTiming
+
+    engine = AuspiciousTiming()
+    return engine.get_timing_wheel_data(lat=latitude, lon=longitude)
+
+
+def get_active_world_crises() -> dict[str, Any]:
+    """Retrieve active global crises, natural disasters, and humanitarian events.
+
+    Fetches real-time alert data from GDACS (earthquakes, floods, cyclones, tsunamis)
+    and humanitarian situations from ReliefWeb. Provides geographic coordinates,
+    severity ratings, and recommended compassionate healing intention focal points.
+    """
+    from core.internet_context import compile_world_context
+
+    ctx = compile_world_context(include_disasters=True, include_headlines=True, include_astrology=False)
+    crises = []
+    for ev in ctx.events:
+        crises.append(
+            {
+                "title": ev.title,
+                "description": ev.description,
+                "location": ev.location or ev.country or "Global",
+                "country": ev.country,
+                "latitude": ev.lat,
+                "longitude": ev.lon,
+                "event_type": ev.event_type,
+                "severity": ev.severity,
+                "source": ev.source,
+                "date": ev.date,
+                "url": ev.url,
+            }
+        )
+    return {
+        "status": "success",
+        "total_crises": len(crises),
+        "disaster_count": sum(1 for c in crises if c["event_type"] == "disaster"),
+        "humanitarian_count": sum(1 for c in crises if c["event_type"] == "humanitarian"),
+        "crises": crises,
+        "summary": ctx.summary,
+    }
+
+
+def trigger_living_ritual_broadcast(
+    intention: str = "May all beings be free from suffering",
+    target: str = "all beings",
+    ritual_type: str = "healing",
+    duration_minutes: int = 5,
+    recite_with_tts: bool = False,
+) -> dict[str, Any]:
+    """Trigger a living ritual broadcast combining sacred text, Solfeggio tones, and dedication.
+
+    Generates a full 6-section sacred ritual (Invocation, Sacred Prayer, Dharma Teaching,
+    Divination/Correspondence, Hero Journey Narrative, and Dedication of Merit),
+    initiates crystal bowl Solfeggio carrier broadcast, optionally cues TTS recitation,
+    and archives the ritual to outlook_narratives.
+    """
+    from backend.app.api.v1.endpoints.radionics import RitualBroadcastRequest, ritual_broadcast
+
+    req = RitualBroadcastRequest(
+        intention=intention,
+        target=target,
+        ritual_type=ritual_type,
+        duration_minutes=duration_minutes,
+        recite_with_tts=recite_with_tts,
+    )
+    res = _run_async(ritual_broadcast(req))
+    return _dump(res)
+
+
+# ============================================================================
 # IMAGE GENERATION (modular service — see backend/core/services/image_generation_service.py)
 # ============================================================================
 
@@ -1986,6 +2165,11 @@ TOOL_REGISTRY = {
     "generate_image": _AGENT_DISPATCH,
     "run_working": run_working,
     "forge_witness": forge_witness,
+    "get_celestial_night_sky": get_celestial_night_sky,
+    "get_dharani_text": get_dharani_text,
+    "get_auspicious_timing_details": get_auspicious_timing_details,
+    "get_active_world_crises": get_active_world_crises,
+    "trigger_living_ritual_broadcast": trigger_living_ritual_broadcast,
 }
 
 
@@ -2011,6 +2195,11 @@ ESSENTIAL_TOOL_ORDER: list[str] = [
     "search_knowledge",
     "web_search",
     "check_auspicious_timing",
+    "get_auspicious_timing_details",
+    "get_celestial_night_sky",
+    "get_dharani_text",
+    "get_active_world_crises",
+    "trigger_living_ritual_broadcast",
     "check_saka_dawa",
     "get_planetary_hours_and_transits",
     "get_random_buddha",
@@ -2723,6 +2912,86 @@ def get_tool_schemas(essential_only: bool = True) -> list[dict[str, Any]]:
                     },
                 },
                 "required": ["prompt"],
+            },
+        },
+        {
+            "name": "get_celestial_night_sky",
+            "description": "Calculate topocentric celestial dome Alt/Az coordinates for 10 planets and 10 Vedic nakshatra stars, with Moon phase, illumination, and LST.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "description": "Observer latitude in degrees (default: San Francisco 37.7749)",
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "description": "Observer longitude in degrees (default: San Francisco -122.4194)",
+                    },
+                    "timestamp": {
+                        "type": "number",
+                        "description": "Unix timestamp in seconds (optional, defaults to now)",
+                    },
+                },
+            },
+        },
+        {
+            "name": "get_dharani_text",
+            "description": "Retrieve complete unabbreviated sacred Dhāraṇī text (Sanskrit IAST, Chinese characters, English meaning, and recitation count). Supports Great Compassion (84 phrases), Śūraṅgama (5 assemblies), Sitātapatrā, Mahāpratisarā, Cundi, etc. Call with 'list' to browse directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dharani_id_or_name": {
+                        "type": "string",
+                        "description": "Identifier or name of dhāraṇī (e.g. 'great_compassion_dharani', 'shurangama_mantra_full', 'sitatapatra_dharani', 'cundi_dharani', or 'list')",
+                    },
+                },
+            },
+        },
+        {
+            "name": "get_auspicious_timing_details",
+            "description": "Retrieve full 24-hour Auspicious Timing Wheel data including planetary hours, current ruler, day/night status, tithi, nakshatra, Saka Dawa multiplier, and ritual genre green windows.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "latitude": {"type": "number", "description": "Observer latitude in degrees"},
+                    "longitude": {"type": "number", "description": "Observer longitude in degrees"},
+                },
+            },
+        },
+        {
+            "name": "get_active_world_crises",
+            "description": "Fetch real-time global crises and natural disaster alerts from GDACS and ReliefWeb, including geographic coordinates, magnitude/severity, and recommended compassionate healing intention focus.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+        {
+            "name": "trigger_living_ritual_broadcast",
+            "description": "Trigger a living ritual broadcast combining 6-section generated ritual liturgy, crystal bowl Solfeggio carriers, dedication, and optional TTS recitation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intention": {"type": "string", "description": "Sacred intention or dedication"},
+                    "target": {"type": "string", "description": "Target recipient or region (default 'all beings')"},
+                    "ritual_type": {
+                        "type": "string",
+                        "enum": [
+                            "healing",
+                            "victory",
+                            "wisdom",
+                            "purification",
+                            "compassion",
+                            "prosperity",
+                            "protection",
+                            "dedication_of_endeavors",
+                        ],
+                        "description": "Ritual genre or archetype",
+                    },
+                    "duration_minutes": {"type": "integer", "description": "Broadcast duration in minutes (default 5)"},
+                    "recite_with_tts": {"type": "boolean", "description": "Whether to recite the ritual aloud via TTS"},
+                },
             },
         },
     ]

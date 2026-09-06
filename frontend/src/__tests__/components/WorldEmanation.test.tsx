@@ -85,4 +85,38 @@ describe('WorldEmanation', () => {
     });
     expect(container.textContent || '').toContain('Emanating: all beings · 432 Hz');
   });
+
+  it('fetches world-context disasters and displays need-sites badge in compact mode', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/operator/world-context')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              disasters: [
+                { title: 'Quake M7.0', location: 'Philippines', severity: 'critical', lat: 14.2, lon: 121.1 },
+                { title: 'Flood Alert', location: 'Vietnam', severity: 'high', lat: 16.0, lon: 108.0 },
+              ],
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    try {
+      const root = createRoot(container);
+      await act(async () => {
+        root.render(<WorldEmanation variant="compact" />);
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(container.querySelector('[data-testid="crisis-need-sites-badge"]')).not.toBeNull();
+      expect(container.textContent || '').toContain('2 need-sites');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

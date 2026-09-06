@@ -152,6 +152,19 @@ TOOL_NAME_ALIASES: dict[str, str] = {
     "set_rng_bias": "create_rng_session",
     "calibrate_rng": "create_rng_session",
     "set_crystal_intent": "broadcast_healing",
+    "get_night_sky": "get_celestial_night_sky",
+    "night_sky": "get_celestial_night_sky",
+    "celestial_sky": "get_celestial_night_sky",
+    "get_dharani": "get_dharani_text",
+    "dharani_text": "get_dharani_text",
+    "dharani": "get_dharani_text",
+    "timing_wheel": "get_auspicious_timing_details",
+    "get_timing_wheel": "get_auspicious_timing_details",
+    "world_crises": "get_active_world_crises",
+    "get_world_crises": "get_active_world_crises",
+    "active_crises": "get_active_world_crises",
+    "living_ritual": "trigger_living_ritual_broadcast",
+    "living_ritual_broadcast": "trigger_living_ritual_broadcast",
 }
 
 ARG_ALIASES: dict[str, str] = {
@@ -682,6 +695,43 @@ async def execute_tool_locally(name: str, args: dict) -> Any:
 
         disp = ToolDispatcher(container)
         return disp.dispatch(name, args)
+    elif name == "get_celestial_night_sky":
+        from backend.core.llm_agent.tools import get_celestial_night_sky
+
+        return get_celestial_night_sky(
+            latitude=float(args.get("latitude") or args.get("lat") or DEFAULT_LAT),
+            longitude=float(args.get("longitude") or args.get("lon") or args.get("lng") or DEFAULT_LNG),
+            timestamp=float(args.get("timestamp")) if args.get("timestamp") is not None else None,
+        )
+    elif name == "get_dharani_text":
+        from backend.core.llm_agent.tools import get_dharani_text
+
+        return get_dharani_text(
+            dharani_id_or_name=str(
+                args.get("dharani_id_or_name") or args.get("dharani_id") or args.get("name") or args.get("id") or ""
+            )
+        )
+    elif name == "get_auspicious_timing_details":
+        from backend.core.llm_agent.tools import get_auspicious_timing_details
+
+        return get_auspicious_timing_details(
+            latitude=float(args.get("latitude") or args.get("lat") or DEFAULT_LAT),
+            longitude=float(args.get("longitude") or args.get("lon") or args.get("lng") or DEFAULT_LNG),
+        )
+    elif name == "get_active_world_crises":
+        from backend.core.llm_agent.tools import get_active_world_crises
+
+        return get_active_world_crises()
+    elif name == "trigger_living_ritual_broadcast":
+        from backend.core.llm_agent.tools import trigger_living_ritual_broadcast
+
+        return trigger_living_ritual_broadcast(
+            intention=str(args.get("intention") or "May all beings be free from suffering"),
+            target=str(args.get("target") or "all beings"),
+            ritual_type=str(args.get("ritual_type") or "healing"),
+            duration_minutes=int(args.get("duration_minutes") or 5),
+            recite_with_tts=bool(args.get("recite_with_tts", False)),
+        )
     else:
         # Fallback: call the tool function directly (detect if async or sync)
         import asyncio as _asyncio
