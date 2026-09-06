@@ -72,6 +72,34 @@ def _get_aspect_influence(p1: str, p2: str, aspect: str) -> str:
     return influences.get(aspect.lower(), "Astrological interaction of planetary energies.")
 
 
+@router.get("/night-sky")
+async def get_night_sky(
+    latitude: float = 37.7749,
+    longitude: float = -122.4194,
+    datetime_str: str | None = None,
+):
+    """Calculate the real-time topocentric celestial dome above (latitude, longitude).
+
+    Returns altitude/azimuth horizontal coordinates for all planets, Moon phase,
+    and sacred Vedic nakshatra fixed stars.
+    """
+    from datetime import datetime, timezone
+
+    from core.celestial_sky import calculate_night_sky
+
+    dt = None
+    if datetime_str:
+        clean_dt = datetime_str.replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(clean_dt)
+        except Exception:
+            dt = None
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+
+    return calculate_night_sky(latitude=latitude, longitude=longitude, dt=dt)
+
+
 @router.get("/current")
 async def get_current_astrology(datetime_str: str = None, latitude: float = None, longitude: float = None):
     """Get current astrological data or calculate for custom datetime & location"""
