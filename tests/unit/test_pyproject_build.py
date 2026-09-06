@@ -27,7 +27,7 @@ def test_build_wheel_succeeds() -> None:
     ``pyproject.toml`` must be importable by setuptools.
     """
     result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel"],
+        [sys.executable, "-P", "-m", "build", "--wheel"],
         cwd=str(PROJECT_ROOT),
         capture_output=True,
         text=True,

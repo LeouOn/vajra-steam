@@ -40,3 +40,7 @@ try {
   globalThis.AudioContext = MockAudioContext;
   (globalThis as Record<string, unknown>).webkitAudioContext = MockAudioContext;
 } catch {}
+
+if (typeof HTMLCanvasElement !== 'undefined' && !HTMLCanvasElement.prototype.getContext) {
+  (HTMLCanvasElement.prototype as any).getContext = () => null;
+}

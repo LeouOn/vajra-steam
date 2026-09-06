@@ -189,6 +189,7 @@ _EXTERNAL_LLM_PROVIDERS = frozenset({"openrouter", "deepseek", "openai", "anthro
 def _no_external_llm_spend(request, monkeypatch):
     nodeid = request.node.nodeid.replace("\\", "/")
     if "/e2e/" in nodeid or request.node.get_closest_marker("e2e"):
+        yield
         return
 
     from core.llm.usage import LLMUsageTracker
